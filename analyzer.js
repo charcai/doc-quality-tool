@@ -177,18 +177,23 @@ class QualityAnalyzer {
 
     checkCompleteness(files) {
         const checks = [
-            { key: 'README', regex: /^readme/i, name: 'README.md', description: '项目说明文档' },
-            { key: 'LICENSE', regex: /^license/i, name: 'LICENSE', description: '开源许可证' },
-            { key: 'CONTRIBUTING', regex: /^contributing/i, name: 'CONTRIBUTING.md', description: '贡献指南' },
-            { key: 'CODE_OF_CONDUCT', regex: /^code_of_conduct/i, name: 'CODE_OF_CONDUCT.md', description: '行为准则' }
+            { key: 'README', regex: /^readme/i, name: 'README.md', description: '项目说明文档', weight: 1.0 },
+            { key: 'LICENSE', regex: /^license/i, name: 'LICENSE', description: '开源许可证', weight: 0.8 },
+            { key: 'CONTRIBUTING', regex: /^contributing/i, name: 'CONTRIBUTING.md', description: '贡献指南', weight: 0.6 },
+            { key: 'CODE_OF_CONDUCT', regex: /^code_of_conduct/i, name: 'CODE_OF_CONDUCT.md', description: '行为准则', weight: 0.4 },
+            { key: 'CHANGELOG', regex: /^changelog/i, name: 'CHANGELOG.md', description: '更新日志', weight: 0.3 },
+            { key: 'SECURITY', regex: /^security/i, name: 'SECURITY.md', description: '安全政策', weight: 0.3 },
+            { key: 'AUTHORS', regex: /^authors/i, name: 'AUTHORS', description: '作者列表', weight: 0.2 }
         ];
 
-        let found = 0;
+        let totalWeight = 0;
+        let foundWeight = 0;
         let missing = [];
         const fileChecks = checks.map(check => {
             const exists = files.some(f => check.regex.test(f));
+            totalWeight += check.weight;
             if (exists) {
-                found++;
+                foundWeight += check.weight;
                 return { ...check, exists: true, status: 'found' };
             } else {
                 missing.push(check.key);
@@ -196,8 +201,10 @@ class QualityAnalyzer {
             }
         });
 
+        const score = totalWeight > 0 ? (foundWeight / totalWeight) * 100 : 0;
+
         return {
-            score: (found / checks.length) * 100,
+            score: Math.round(score),
             details: missing.length === 0 ? "所有关键文件齐全" : `缺失文件: ${missing.join(', ')}`,
             fileChecks
         };

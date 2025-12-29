@@ -30,8 +30,42 @@
             <p class="text-gray-600 text-lg">基于社区规范，自动化评估开源项目文档质量</p>
         </header>
 
-        <!-- Search Box -->
-        <div class="bg-white p-6 rounded-2xl shadow-xl mb-8 animate-fade-in">
+        <!-- 功能标签页 -->
+        <div class="bg-white p-2 rounded-2xl shadow-xl mb-6 animate-fade-in">
+            <div class="flex gap-2">
+                <button 
+                    @click="activeTab = 'single'"
+                    :class="activeTab === 'single' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
+                    class="flex-1 py-3 px-4 rounded-xl font-semibold transition"
+                >
+                    🔍 单仓库分析
+                </button>
+                <button 
+                    @click="activeTab = 'batch'"
+                    :class="activeTab === 'batch' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
+                    class="flex-1 py-3 px-4 rounded-xl font-semibold transition"
+                >
+                    📦 批量分析
+                </button>
+                <button 
+                    @click="activeTab = 'compare'"
+                    :class="activeTab === 'compare' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
+                    class="flex-1 py-3 px-4 rounded-xl font-semibold transition"
+                >
+                    ⚖️ 仓库对比
+                </button>
+                <button 
+                    @click="activeTab = 'history'"
+                    :class="activeTab === 'history' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
+                    class="flex-1 py-3 px-4 rounded-xl font-semibold transition"
+                >
+                    📜 分析历史
+                </button>
+            </div>
+        </div>
+
+        <!-- 单仓库分析 -->
+        <div v-if="activeTab === 'single'" class="bg-white p-6 rounded-2xl shadow-xl mb-8 animate-fade-in">
             <div class="flex gap-4">
                 <input 
                     v-model="repoUrl" 
@@ -51,8 +85,122 @@
             <p v-if="error" class="text-red-500 mt-4 text-sm bg-red-50 p-3 rounded-lg border border-red-200">{{ error }}</p>
         </div>
 
-        <!-- Results -->
-        <div v-if="result" class="space-y-6 animate-fade-in">
+        <!-- 批量分析 -->
+        <div v-if="activeTab === 'batch'" class="bg-white p-6 rounded-2xl shadow-xl mb-8 animate-fade-in">
+            <h3 class="text-xl font-bold mb-4">批量分析（最多10个仓库）</h3>
+            <div class="space-y-3">
+                <div v-for="(url, index) in batchUrls" :key="index" class="flex gap-2">
+                    <input 
+                        v-model="batchUrls[index]" 
+                        type="text" 
+                        :placeholder="`仓库 ${index + 1} URL`"
+                        class="flex-1 p-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                    <button 
+                        @click="removeBatchUrl(index)"
+                        v-if="batchUrls.length > 1"
+                        class="px-4 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600"
+                    >
+                        ✕
+                    </button>
+                </div>
+                <div class="flex gap-2">
+                    <button 
+                        @click="addBatchUrl"
+                        class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                    >
+                        + 添加仓库
+                    </button>
+                    <button 
+                        @click="analyzeBatch"
+                        :disabled="batchLoading || batchUrls.length === 0"
+                        class="flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500"
+                    >
+                        {{ batchLoading ? '⏳ 批量分析中...' : '🚀 开始批量分析' }}
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 仓库对比 -->
+        <div v-if="activeTab === 'compare'" class="bg-white p-6 rounded-2xl shadow-xl mb-8 animate-fade-in">
+            <h3 class="text-xl font-bold mb-4">对比两个仓库</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <input 
+                    v-model="compareUrl1" 
+                    type="text" 
+                    placeholder="仓库 1 URL"
+                    class="p-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                <input 
+                    v-model="compareUrl2" 
+                    type="text" 
+                    placeholder="仓库 2 URL"
+                    class="p-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+            </div>
+            <button 
+                @click="compareRepos"
+                :disabled="compareLoading || !compareUrl1 || !compareUrl2"
+                class="w-full px-4 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500"
+            >
+                {{ compareLoading ? '⏳ 对比中...' : '⚖️ 开始对比' }}
+            </button>
+        </div>
+
+        <!-- 分析历史 -->
+        <div v-if="activeTab === 'history'" class="bg-white p-6 rounded-2xl shadow-xl mb-8 animate-fade-in">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold">分析历史</h3>
+                <button 
+                    @click="loadHistory"
+                    class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                    🔄 刷新
+                </button>
+            </div>
+            <div v-if="history.length === 0" class="text-center py-8 text-gray-500">
+                暂无分析历史
+            </div>
+            <div v-else class="space-y-2">
+                <div 
+                    v-for="(item, index) in history" 
+                    :key="index"
+                    @click="loadFromHistory(item.url)"
+                    class="p-4 border-2 border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 cursor-pointer transition"
+                >
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <div class="font-semibold">{{ item.repo }}</div>
+                            <div class="text-sm text-gray-500">{{ item.url }}</div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-2xl font-bold text-blue-600">{{ item.totalScore }}</div>
+                            <div class="text-xs text-gray-500">{{ formatDate(item.analyzedAt) }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 导出按钮 -->
+        <div v-if="result && activeTab === 'single'" class="mb-4 flex gap-2 justify-end">
+            <button 
+                @click="exportReport('json')"
+                class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+            >
+                📥 导出 JSON
+            </button>
+            <button 
+                @click="exportReport('csv')"
+                class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+                📥 导出 CSV
+            </button>
+        </div>
+
+        <!-- 单仓库分析结果 -->
+        <div v-if="result && activeTab === 'single'" class="space-y-6 animate-fade-in">
             <!-- 仓库基本信息卡片 -->
             <div class="bg-white rounded-2xl shadow-xl p-6">
                 <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -247,6 +395,79 @@
                 </div>
             </div>
         </div>
+
+        <!-- 批量分析结果 -->
+        <div v-if="batchResults && activeTab === 'batch'" class="space-y-4 animate-fade-in">
+            <div class="bg-white p-6 rounded-2xl shadow-xl">
+                <h3 class="text-xl font-bold mb-4">批量分析结果</h3>
+                <div class="mb-4 text-sm text-gray-600">
+                    总计: {{ batchResults.total }} | 
+                    成功: <span class="text-green-600">{{ batchResults.succeeded }}</span> | 
+                    失败: <span class="text-red-600">{{ batchResults.failed }}</span>
+                </div>
+                <div class="space-y-3">
+                    <div 
+                        v-for="(item, index) in batchResults.results" 
+                        :key="index"
+                        class="p-4 border-2 border-gray-200 rounded-lg hover:border-blue-500"
+                    >
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <div class="font-semibold">{{ item.data.repo }}</div>
+                                <div class="text-sm text-gray-500">{{ item.url }}</div>
+                            </div>
+                            <div class="text-2xl font-bold text-blue-600">{{ item.data.totalScore }}</div>
+                        </div>
+                    </div>
+                    <div 
+                        v-for="(item, index) in batchResults.errors" 
+                        :key="'error-' + index"
+                        class="p-4 border-2 border-red-200 bg-red-50 rounded-lg"
+                    >
+                        <div class="font-semibold text-red-600">{{ item.url }}</div>
+                        <div class="text-sm text-red-500">{{ item.error }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 对比结果 -->
+        <div v-if="compareResult && activeTab === 'compare'" class="space-y-6 animate-fade-in">
+            <div class="bg-white p-6 rounded-2xl shadow-xl">
+                <h3 class="text-xl font-bold mb-4">对比结果</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div class="p-4 border-2 border-blue-200 rounded-lg">
+                        <div class="font-bold mb-2">{{ compareResult.repo1.repo }}</div>
+                        <div class="text-3xl font-bold text-blue-600 mb-2">{{ compareResult.repo1.totalScore }}</div>
+                        <div class="text-sm text-gray-600">综合评分</div>
+                    </div>
+                    <div class="p-4 border-2 border-purple-200 rounded-lg">
+                        <div class="font-bold mb-2">{{ compareResult.repo2.repo }}</div>
+                        <div class="text-3xl font-bold text-purple-600 mb-2">{{ compareResult.repo2.totalScore }}</div>
+                        <div class="text-sm text-gray-600">综合评分</div>
+                    </div>
+                </div>
+                <div class="space-y-2">
+                    <div class="font-semibold mb-2">维度对比（差值 = 仓库1 - 仓库2）</div>
+                    <div 
+                        v-for="(value, key) in compareResult.differences.dimensions" 
+                        :key="key"
+                        class="flex justify-between items-center p-2 bg-gray-50 rounded"
+                    >
+                        <span>{{ dimensionMap[key]?.label || key }}</span>
+                        <span :class="value > 0 ? 'text-green-600' : value < 0 ? 'text-red-600' : 'text-gray-600'">
+                            {{ value > 0 ? '+' : '' }}{{ value.toFixed(1) }}
+                        </span>
+                    </div>
+                    <div class="flex justify-between items-center p-2 bg-blue-50 rounded font-semibold mt-2">
+                        <span>综合评分差值</span>
+                        <span :class="compareResult.differences.totalScore > 0 ? 'text-green-600' : compareResult.differences.totalScore < 0 ? 'text-red-600' : 'text-gray-600'">
+                            {{ compareResult.differences.totalScore > 0 ? '+' : '' }}{{ compareResult.differences.totalScore.toFixed(1) }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -258,6 +479,15 @@
                 const loading = ref(false);
                 const result = ref(null);
                 const error = ref(null);
+                const activeTab = ref('single');
+                const batchUrls = ref(['', '']);
+                const batchLoading = ref(false);
+                const batchResults = ref(null);
+                const compareUrl1 = ref('');
+                const compareUrl2 = ref('');
+                const compareLoading = ref(false);
+                const compareResult = ref(null);
+                const history = ref([]);
                 let radarChartInstance = null;
                 let barChartInstance = null;
 
@@ -448,12 +678,138 @@
                     });
                 };
 
+                // 批量分析相关
+                const addBatchUrl = () => {
+                    if (batchUrls.value.length < 10) {
+                        batchUrls.value.push('');
+                    }
+                };
+
+                const removeBatchUrl = (index) => {
+                    batchUrls.value.splice(index, 1);
+                };
+
+                const analyzeBatch = async () => {
+                    const urls = batchUrls.value.filter(url => url.trim());
+                    if (urls.length === 0) return;
+                    
+                    batchLoading.value = true;
+                    batchResults.value = null;
+                    
+                    try {
+                        const res = await fetch('/api/analyze/batch', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ urls })
+                        });
+                        const data = await res.json();
+                        
+                        if (data.success) {
+                            batchResults.value = data;
+                            loadHistory();
+                        }
+                    } catch (e) {
+                        error.value = '批量分析失败';
+                    } finally {
+                        batchLoading.value = false;
+                    }
+                };
+
+                // 对比功能
+                const compareRepos = async () => {
+                    if (!compareUrl1.value || !compareUrl2.value) return;
+                    
+                    compareLoading.value = true;
+                    compareResult.value = null;
+                    
+                    try {
+                        const res = await fetch('/api/compare', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ 
+                                url1: compareUrl1.value,
+                                url2: compareUrl2.value
+                            })
+                        });
+                        const data = await res.json();
+                        
+                        if (data.success) {
+                            compareResult.value = data.data;
+                        } else {
+                            error.value = data.error || '对比失败';
+                        }
+                    } catch (e) {
+                        error.value = '对比失败，请稍后重试';
+                    } finally {
+                        compareLoading.value = false;
+                    }
+                };
+
+                // 历史记录
+                const loadHistory = async () => {
+                    try {
+                        const res = await fetch('/api/history');
+                        const data = await res.json();
+                        if (data.success) {
+                            history.value = data.data;
+                        }
+                    } catch (e) {
+                        console.error('加载历史失败', e);
+                    }
+                };
+
+                const loadFromHistory = (url) => {
+                    repoUrl.value = url;
+                    activeTab.value = 'single';
+                    analyze();
+                };
+
+                // 导出功能
+                const exportReport = async (format) => {
+                    if (!result.value) return;
+                    
+                    try {
+                        const endpoint = format === 'json' ? '/api/export/json' : '/api/export/csv';
+                        const res = await fetch(endpoint, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ report: result.value })
+                        });
+                        const data = await res.json();
+                        
+                        if (data.success) {
+                            window.open(data.downloadUrl, '_blank');
+                        }
+                    } catch (e) {
+                        error.value = '导出失败';
+                    }
+                };
+
+                // 初始化时加载历史
+                loadHistory();
+
                 return {
                     repoUrl,
                     loading,
                     result,
                     error,
+                    activeTab,
+                    batchUrls,
+                    batchLoading,
+                    batchResults,
+                    compareUrl1,
+                    compareUrl2,
+                    compareLoading,
+                    compareResult,
+                    history,
                     analyze,
+                    addBatchUrl,
+                    removeBatchUrl,
+                    analyzeBatch,
+                    compareRepos,
+                    loadHistory,
+                    loadFromHistory,
+                    exportReport,
                     dimensionMap,
                     weights,
                     getScoreColor,
