@@ -9,13 +9,13 @@
 - 📈 **可视化报告**：使用雷达图直观展示各维度得分，提供详细的诊断报告
 - 💡 **改进建议**：针对每个维度提供具体的改进建议
 - 🎨 **现代化 UI**：简洁美观的用户界面，基于 Vue 3 和 Tailwind CSS
-- 🔒 **安全配置**：使用环境变量管理敏感信息，保护 GitHub Token
+- 🔒 **安全配置**：使用环境变量管理敏感信息，保护大模型 API Token
 
 ## 🛠️ 技术栈
 
 ### 后端
 - **Node.js** + **Express**：Web 服务器框架
-- **Axios**：HTTP 客户端，用于调用 GitHub API
+- **Axios**：HTTP 客户端，用于调用 GitHub API 和大模型 API
 - **dotenv**：环境变量管理
 
 ### 前端
@@ -27,7 +27,7 @@
 
 - Node.js >= 14.0.0
 - npm >= 6.0.0
-- GitHub Personal Access Token（用于访问 GitHub API）
+- 大模型 API Token（用于调用大模型 API 进行文档质量分析）
 
 ## 🚀 快速开始
 
@@ -49,8 +49,7 @@ npm install
 创建 `.env` 文件（项目根目录下）：
 
 ```bash
-cp .env.example .env  # 如果有示例文件
-# 或者直接创建 .env 文件
+cp .env.example .env
 ```
 
 在 `.env` 文件中添加你的 GitHub Token：
@@ -59,16 +58,16 @@ cp .env.example .env  # 如果有示例文件
 GITHUB_TOKEN=your_github_token_here
 ```
 
-#### 如何获取 GitHub Token？
+> 如何获取 GitHub Token？
+>
+> 1. 访问 [GitHub Settings > Developer settings > Personal access tokens > Tokens (classic)](https://github.com/settings/tokens)
+> 2. 点击 "Generate new token (classic)"
+> 3. 设置 Token 名称和过期时间
+> 4. 勾选 `public_repo` 权限（如果仓库是私有的，还需要 `repo` 权限）
+> 5. 点击 "Generate token"
+> 6. 复制生成的 Token 并保存到 `.env` 文件中
 
-1. 访问 [GitHub Settings > Developer settings > Personal access tokens > Tokens (classic)](https://github.com/settings/tokens)
-2. 点击 "Generate new token (classic)"
-3. 设置 Token 名称和过期时间
-4. 勾选 `public_repo` 权限（如果仓库是私有的，还需要 `repo` 权限）
-5. 点击 "Generate token"
-6. 复制生成的 Token 并保存到 `.env` 文件中
-
-⚠️ **重要**：Token 一旦生成后只显示一次，请妥善保管！
+> ⚠️ **重要**：Token 一旦生成后只显示一次，请妥善保管！
 
 ### 4. 启动服务
 
@@ -236,25 +235,23 @@ timeout: 10000 // 单位：毫秒，默认 10 秒
 
 ## ❓ 常见问题
 
-### Q: 为什么需要 GitHub Token？
+### Q: 为什么需要大模型 API Token？
 
-A: GitHub API 有速率限制，使用 Token 可以提高 API 调用限制（从每小时 60 次提升到 5000 次）。
+A: 工具使用大模型 API 对文档内容进行深度分析和质量评估，提供更准确和智能的评分结果。大模型能够理解文档的语义内容，而不仅仅是基于规则的检查。
 
 ### Q: Token 会泄露吗？
 
-A: 不会。Token 存储在 `.env` 文件中，该文件已添加到 `.gitignore`，不会被提交到代码仓库。
+A: 不会。Token 存储在 `.env` 文件中，该文件已添加到 `.gitignore`，不会被提交到代码仓库。请确保不要将 `.env` 文件上传到公共代码仓库。
 
-### Q: 支持私有仓库吗？
-
-A: 支持。需要在生成 Token 时勾选 `repo` 权限（完整仓库访问权限）。
 
 ### Q: 分析失败怎么办？
 
 A: 请检查以下几点：
 1. GitHub URL 格式是否正确
 2. 仓库是否存在且可访问
-3. Token 是否有效且有足够权限
-4. 网络连接是否正常
+3. 大模型 API Token 是否有效
+4. 大模型 API 服务是否可访问
+5. 网络连接是否正常
 
 ### Q: 可以分析非 GitHub 的仓库吗？
 
