@@ -3,8 +3,11 @@ const axios = require('axios');
 // ==========================================
 // 配置区域
 // ==========================================
-// 你的 Token
-const GITHUB_TOKEN = '';
+// 从环境变量读取 Token
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+if (!GITHUB_TOKEN) {
+    throw new Error('GITHUB_TOKEN 环境变量未设置，请在 .env 文件中配置');
+}
 
 const axiosConfig = {
     headers: {
