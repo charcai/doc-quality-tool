@@ -7,58 +7,242 @@
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+    </style>
 </head>
-<body class="bg-slate-50 text-slate-800">
-    <div id="app" class="container mx-auto px-4 py-10 max-w-4xl">
-        <header class="text-center mb-10">
-            <h1 class="text-4xl font-bold text-blue-600 mb-2">文档和贡献指南质量检测工具</h1>
-            <p class="text-gray-500">基于社区规范，自动化评估开源项目文档质量</p>
+<body class="bg-gradient-to-br from-slate-50 to-slate-100 text-slate-800 min-h-screen">
+    <div id="app" class="container mx-auto px-4 py-8 max-w-7xl">
+        <!-- Header -->
+        <header class="text-center mb-10 animate-fade-in">
+            <h1 class="text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 mb-3">
+                📚 文档质量检测工具
+            </h1>
+            <p class="text-gray-600 text-lg">基于社区规范，自动化评估开源项目文档质量</p>
         </header>
 
-        <div class="bg-white p-6 rounded-xl shadow-lg mb-8">
+        <!-- Search Box -->
+        <div class="bg-white p-6 rounded-2xl shadow-xl mb-8 animate-fade-in">
             <div class="flex gap-4">
                 <input 
                     v-model="repoUrl" 
                     type="text" 
                     placeholder="请输入 GitHub 项目 URL (例如: https://github.com/vuejs/core)" 
-                    class="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    class="flex-1 p-4 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
                     @keyup.enter="analyze"
                 >
                 <button 
                     @click="analyze" 
                     :disabled="loading"
-                    class="bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 disabled:bg-gray-400 transition"
+                    class="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-10 py-4 rounded-xl font-semibold hover:from-blue-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500 transition shadow-lg hover:shadow-xl transform hover:scale-105 disabled:transform-none"
                 >
-                    {{ loading ? '检测中...' : '开始检测' }}
+                    {{ loading ? '⏳ 检测中...' : '🚀 开始检测' }}
                 </button>
             </div>
-            <p v-if="error" class="text-red-500 mt-3 text-sm">{{ error }}</p>
+            <p v-if="error" class="text-red-500 mt-4 text-sm bg-red-50 p-3 rounded-lg border border-red-200">{{ error }}</p>
         </div>
 
-        <div v-if="result" class="grid grid-cols-1 md:grid-cols-2 gap-8 animate-fade-in">
-            
-            <div class="bg-white p-6 pb-10 rounded-xl shadow-lg flex flex-col items-center justify-center">
-                <h3 class="text-xl font-bold mb-4 text-gray-700">五维能力图谱</h3>
-                <div id="radar-chart" style="width: 100%; height: 350px;"></div>
-                <div class="mt-4 text-center">
-                    <span class="text-gray-500">综合评分</span>
-                    <div class="text-5xl font-bold text-blue-600 mt-1">{{ result.totalScore }}</div>
+        <!-- Results -->
+        <div v-if="result" class="space-y-6 animate-fade-in">
+            <!-- 仓库基本信息卡片 -->
+            <div class="bg-white rounded-2xl shadow-xl p-6">
+                <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                    <div class="flex-1">
+                        <div class="flex items-center gap-3 mb-2">
+                            <h2 class="text-2xl font-bold text-gray-800">{{ result.repoInfo.fullName }}</h2>
+                            <a :href="result.repoUrl" target="_blank" class="text-blue-500 hover:text-blue-700">
+                                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"></path>
+                                    <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"></path>
+                                </svg>
+                            </a>
+                        </div>
+                        <p class="text-gray-600 mb-4">{{ result.repoInfo.description }}</p>
+                        <div class="flex flex-wrap gap-4 text-sm">
+                            <div class="flex items-center gap-1">
+                                <span class="text-yellow-500">⭐</span>
+                                <span class="font-semibold">{{ formatNumber(result.repoInfo.stars) }}</span>
+                            </div>
+                            <div class="flex items-center gap-1">
+                                <span class="text-gray-500">🍴</span>
+                                <span class="font-semibold">{{ formatNumber(result.repoInfo.forks) }}</span>
+                            </div>
+                            <div class="flex items-center gap-1">
+                                <span class="text-blue-500">👁</span>
+                                <span class="font-semibold">{{ formatNumber(result.repoInfo.watchers) }}</span>
+                            </div>
+                            <div class="flex items-center gap-1">
+                                <span class="text-red-500">📌</span>
+                                <span class="font-semibold">{{ formatNumber(result.repoInfo.openIssues) }} issues</span>
+                            </div>
+                            <div class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full font-medium">
+                                {{ result.repoInfo.language }}
+                            </div>
+                            <div class="px-3 py-1 bg-gray-100 text-gray-700 rounded-full">
+                                📄 {{ result.repoInfo.license }}
+                            </div>
+                        </div>
+                        <div v-if="result.repoInfo.topics.length > 0" class="mt-3 flex flex-wrap gap-2">
+                            <span v-for="topic in result.repoInfo.topics" :key="topic" 
+                                  class="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs">
+                                #{{ topic }}
+                            </span>
+                        </div>
+                    </div>
+                    <!-- 综合评分卡片 -->
+                    <div class="bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl p-6 text-white text-center min-w-[180px]">
+                        <div class="text-sm opacity-90 mb-2">综合评分</div>
+                        <div class="text-5xl font-bold mb-2">{{ result.totalScore }}</div>
+                        <div class="text-lg font-semibold" :class="getGradeClass(result.gradeColor)">
+                            {{ result.grade }}
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <div class="bg-white p-6 rounded-xl shadow-lg">
-                <h3 class="text-xl font-bold mb-4 text-gray-700">诊断报告 & 改进建议</h3>
-                <div class="space-y-4">
-                    <div class="item" v-for="(item, key) in dimensionMap" :key="key">
-                        <div class="flex justify-between items-center mb-1">
-                            <span class="font-semibold text-gray-700">{{ item.label }}</span>
-                            <span :class="getScoreColor(result.dimensions[key].score)">
-                                {{ result.dimensions[key].score.toFixed(0) }}分
+            <!-- 图表区域 -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- 雷达图 -->
+                <div class="bg-white p-6 rounded-2xl shadow-xl">
+                    <h3 class="text-xl font-bold mb-4 text-gray-700 flex items-center gap-2">
+                        <span>📊</span> 五维能力图谱
+                    </h3>
+                    <div id="radar-chart" style="width: 100%; height: 400px;"></div>
+                </div>
+
+                <!-- 柱状图 -->
+                <div class="bg-white p-6 rounded-2xl shadow-xl">
+                    <h3 class="text-xl font-bold mb-4 text-gray-700 flex items-center gap-2">
+                        <span>📈</span> 维度得分对比
+                    </h3>
+                    <div id="bar-chart" style="width: 100%; height: 400px;"></div>
+                </div>
+            </div>
+
+            <!-- 详细分析报告 -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- 文件完整性检查 -->
+                <div class="bg-white p-6 rounded-2xl shadow-xl">
+                    <h3 class="text-xl font-bold mb-4 text-gray-700 flex items-center gap-2">
+                        <span>📁</span> 文件完整性检查
+                    </h3>
+                    <div class="space-y-3">
+                        <div v-for="file in result.fileChecks" :key="file.key" 
+                             class="flex items-center justify-between p-3 rounded-lg"
+                             :class="file.exists ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'">
+                            <div class="flex items-center gap-3">
+                                <span :class="file.exists ? 'text-green-600' : 'text-red-600'">
+                                    {{ file.exists ? '✅' : '❌' }}
+                                </span>
+                                <div>
+                                    <div class="font-semibold text-gray-800">{{ file.name }}</div>
+                                    <div class="text-sm text-gray-500">{{ file.description }}</div>
+                                </div>
+                            </div>
+                            <span :class="file.exists ? 'text-green-600' : 'text-red-600'" class="font-semibold">
+                                {{ file.exists ? '已存在' : '缺失' }}
                             </span>
                         </div>
-                        <div class="text-sm text-gray-500 bg-gray-50 p-2 rounded">
-                            建议：{{ result.dimensions[key].details }}
+                    </div>
+                </div>
+
+                <!-- 文档统计 -->
+                <div class="bg-white p-6 rounded-2xl shadow-xl">
+                    <h3 class="text-xl font-bold mb-4 text-gray-700 flex items-center gap-2">
+                        <span>📝</span> 文档统计信息
+                    </h3>
+                <div class="space-y-4">
+                        <div class="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
+                            <span class="text-gray-700">README 文档</span>
+                            <span class="font-semibold" :class="result.docStats.hasReadme ? 'text-green-600' : 'text-red-600'">
+                                {{ result.docStats.hasReadme ? '✓ ' + formatBytes(result.docStats.readmeLength) : '✗ 未找到' }}
+                            </span>
                         </div>
+                        <div class="flex justify-between items-center p-3 bg-purple-50 rounded-lg">
+                            <span class="text-gray-700">CONTRIBUTING 文档</span>
+                            <span class="font-semibold" :class="result.docStats.hasContributing ? 'text-green-600' : 'text-red-600'">
+                                {{ result.docStats.hasContributing ? '✓ ' + formatBytes(result.docStats.contribLength) : '✗ 未找到' }}
+                            </span>
+                        </div>
+                        <div class="mt-4 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg">
+                            <div class="text-sm text-gray-600 mb-2">仓库创建时间</div>
+                            <div class="font-semibold">{{ formatDate(result.repoInfo.createdAt) }}</div>
+                            <div class="text-sm text-gray-600 mt-3 mb-2">最后更新时间</div>
+                            <div class="font-semibold">{{ formatDate(result.repoInfo.updatedAt) }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 各维度详细分析 -->
+            <div class="bg-white p-6 rounded-2xl shadow-xl">
+                <h3 class="text-xl font-bold mb-6 text-gray-700 flex items-center gap-2">
+                    <span>🔍</span> 详细分析报告 & 改进建议
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div v-for="(item, key) in dimensionMap" :key="key" 
+                         class="border-2 rounded-xl p-4"
+                         :class="getDimensionBorderClass(result.dimensions[key].score)">
+                        <div class="flex justify-between items-center mb-3">
+                            <h4 class="font-bold text-gray-800">{{ item.label }}</h4>
+                            <div class="flex items-center gap-2">
+                                <span :class="getScoreColor(result.dimensions[key].score)" class="text-2xl font-bold">
+                                    {{ result.dimensions[key].score.toFixed(0) }}
+                                </span>
+                                <span class="text-gray-400">/ 100</span>
+                            </div>
+                        </div>
+                        <div class="text-sm text-gray-600 mb-3 bg-gray-50 p-2 rounded">
+                            {{ result.dimensions[key].details }}
+                        </div>
+                        <!-- 详细检查项 -->
+                        <div v-if="result.dimensions[key].checks" class="space-y-2 mt-3">
+                            <div v-for="check in result.dimensions[key].checks" :key="check.name" 
+                                 class="flex items-center justify-between text-xs">
+                                <span class="text-gray-600">{{ check.name }}</span>
+                                <span :class="check.passed ? 'text-green-600' : 'text-red-600'">
+                                    {{ check.passed ? '✓' : '✗' }}
+                                </span>
+                            </div>
+                        </div>
+                        <!-- 权重信息 -->
+                        <div class="mt-3 pt-3 border-t border-gray-200">
+                            <div class="text-xs text-gray-500">
+                                权重: {{ (weights[key] * 100).toFixed(0) }}%
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 评分说明 -->
+            <div class="bg-gradient-to-r from-blue-50 to-purple-50 p-6 rounded-2xl shadow-xl">
+                <h3 class="text-xl font-bold mb-4 text-gray-700">📋 评分说明</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div class="bg-white p-4 rounded-lg">
+                        <div class="font-semibold mb-2 text-green-600">优秀 (90-100分)</div>
+                        <div class="text-gray-600">文档质量非常高，符合最佳实践</div>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg">
+                        <div class="font-semibold mb-2 text-blue-600">良好 (80-89分)</div>
+                        <div class="text-gray-600">文档质量良好，有少量改进空间</div>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg">
+                        <div class="font-semibold mb-2 text-yellow-600">中等 (60-79分)</div>
+                        <div class="text-gray-600">文档基本完整，需要进一步完善</div>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg">
+                        <div class="font-semibold mb-2 text-red-600">待改进 (&lt;60分)</div>
+                        <div class="text-gray-600">文档存在明显不足，需要重点改进</div>
                     </div>
                 </div>
             </div>
@@ -70,18 +254,27 @@
 
         createApp({
             setup() {
-                const repoUrl = ref('https://github.com/axios/axios'); // 默认值方便测试
+                const repoUrl = ref('https://github.com/axios/axios');
                 const loading = ref(false);
                 const result = ref(null);
                 const error = ref(null);
-                let chartInstance = null;
+                let radarChartInstance = null;
+                let barChartInstance = null;
 
                 const dimensionMap = {
-                    completeness: { label: '完整性 (Completeness)' },
-                    normativeness: { label: '规范性 (Normativeness)' },
-                    readability: { label: '可读性 (Readability)' },
-                    timeliness: { label: '时效性 (Timeliness)' },
-                    usability: { label: '可用性 (Usability)' }
+                    completeness: { label: '完整性', icon: '📁', description: '检查关键文档文件是否齐全' },
+                    normativeness: { label: '规范性', icon: '📐', description: '评估 Markdown 格式规范性' },
+                    readability: { label: '可读性', icon: '👁', description: '评估文档的可读性和视觉呈现' },
+                    timeliness: { label: '时效性', icon: '⏰', description: '评估项目的活跃度和更新频率' },
+                    usability: { label: '可用性', icon: '🔧', description: '评估文档的实用性' }
+                };
+
+                const weights = {
+                    completeness: 0.3,
+                    normativeness: 0.2,
+                    readability: 0.2,
+                    timeliness: 0.15,
+                    usability: 0.15
                 };
 
                 const analyze = async () => {
@@ -101,7 +294,7 @@
                         if (data.success) {
                             result.value = data.data;
                             await nextTick();
-                            renderChart(data.data.dimensions);
+                            renderCharts(data.data.dimensions);
                         } else {
                             error.value = data.error || '检测失败，请检查 URL 是否正确';
                         }
@@ -112,12 +305,13 @@
                     }
                 };
 
-                const renderChart = (dims) => {
-                    const chartDom = document.getElementById('radar-chart');
-                    if (chartInstance) chartInstance.dispose();
-                    chartInstance = echarts.init(chartDom);
+                const renderCharts = (dims) => {
+                    // 雷达图
+                    const radarDom = document.getElementById('radar-chart');
+                    if (radarChartInstance) radarChartInstance.dispose();
+                    radarChartInstance = echarts.init(radarDom);
 
-                    const option = {
+                    const radarOption = {
                         radar: {
                             indicator: [
                                 { name: '完整性', max: 100 },
@@ -126,7 +320,12 @@
                                 { name: '时效性', max: 100 },
                                 { name: '可用性', max: 100 }
                             ],
-                            radius: '65%'
+                            radius: '70%',
+                            splitArea: {
+                                areaStyle: {
+                                    color: ['rgba(59, 130, 246, 0.1)', 'rgba(59, 130, 246, 0.05)']
+                                }
+                            }
                         },
                         series: [{
                             name: '文档质量',
@@ -140,18 +339,113 @@
                                     dims.usability.score
                                 ],
                                 name: '当前项目',
-                                areaStyle: { color: 'rgba(59, 130, 246, 0.2)' },
-                                itemStyle: { color: '#2563eb' }
+                                areaStyle: { 
+                                    color: 'rgba(59, 130, 246, 0.3)' 
+                                },
+                                itemStyle: { 
+                                    color: '#3b82f6' 
+                                },
+                                lineStyle: {
+                                    width: 2
+                                }
                             }]
                         }]
                     };
-                    chartInstance.setOption(option);
+                    radarChartInstance.setOption(radarOption);
+
+                    // 柱状图
+                    const barDom = document.getElementById('bar-chart');
+                    if (barChartInstance) barChartInstance.dispose();
+                    barChartInstance = echarts.init(barDom);
+
+                    const barOption = {
+                        tooltip: {
+                            trigger: 'axis',
+                            axisPointer: { type: 'shadow' }
+                        },
+                        grid: {
+                            left: '3%',
+                            right: '4%',
+                            bottom: '3%',
+                            containLabel: true
+                        },
+                        xAxis: {
+                            type: 'category',
+                            data: ['完整性', '规范性', '可读性', '时效性', '可用性']
+                        },
+                        yAxis: {
+                            type: 'value',
+                            max: 100,
+                            axisLabel: {
+                                formatter: '{value}分'
+                            }
+                        },
+                        series: [{
+                            name: '得分',
+                            type: 'bar',
+                            data: [
+                                { value: dims.completeness.score, itemStyle: { color: getBarColor(dims.completeness.score) } },
+                                { value: dims.normativeness.score, itemStyle: { color: getBarColor(dims.normativeness.score) } },
+                                { value: dims.readability.score, itemStyle: { color: getBarColor(dims.readability.score) } },
+                                { value: dims.timeliness.score, itemStyle: { color: getBarColor(dims.timeliness.score) } },
+                                { value: dims.usability.score, itemStyle: { color: getBarColor(dims.usability.score) } }
+                            ],
+                            label: {
+                                show: true,
+                                position: 'top',
+                                formatter: '{c}分'
+                            }
+                        }]
+                    };
+                    barChartInstance.setOption(barOption);
+                };
+
+                const getBarColor = (score) => {
+                    if (score >= 80) return '#10b981';
+                    if (score >= 60) return '#f59e0b';
+                    return '#ef4444';
                 };
 
                 const getScoreColor = (score) => {
-                    if (score >= 80) return 'text-green-600 font-bold';
-                    if (score >= 60) return 'text-yellow-600 font-bold';
-                    return 'text-red-600 font-bold';
+                    if (score >= 80) return 'text-green-600';
+                    if (score >= 60) return 'text-yellow-600';
+                    return 'text-red-600';
+                };
+
+                const getDimensionBorderClass = (score) => {
+                    if (score >= 80) return 'border-green-300 bg-green-50';
+                    if (score >= 60) return 'border-yellow-300 bg-yellow-50';
+                    return 'border-red-300 bg-red-50';
+                };
+
+                const getGradeClass = (color) => {
+                    const map = {
+                        green: 'text-green-200',
+                        blue: 'text-blue-200',
+                        yellow: 'text-yellow-200',
+                        red: 'text-red-200'
+                    };
+                    return map[color] || 'text-white';
+                };
+
+                const formatNumber = (num) => {
+                    if (num >= 1000) return (num / 1000).toFixed(1) + 'k';
+                    return num.toString();
+                };
+
+                const formatBytes = (bytes) => {
+                    if (bytes < 1024) return bytes + ' B';
+                    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+                    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+                };
+
+                const formatDate = (dateString) => {
+                    const date = new Date(dateString);
+                    return date.toLocaleDateString('zh-CN', { 
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric' 
+                    });
                 };
 
                 return {
@@ -161,7 +455,13 @@
                     error,
                     analyze,
                     dimensionMap,
-                    getScoreColor
+                    weights,
+                    getScoreColor,
+                    getDimensionBorderClass,
+                    getGradeClass,
+                    formatNumber,
+                    formatBytes,
+                    formatDate
                 };
             }
         }).mount('#app');

@@ -92,9 +92,54 @@ class QualityAnalyzer {
                 usability.score * WEIGHTS.usability
             ).toFixed(1);
 
+            // 计算评分等级
+            const scoreNum = parseFloat(totalScore);
+            let grade = '优秀';
+            let gradeColor = 'green';
+            if (scoreNum >= 90) {
+                grade = '优秀';
+                gradeColor = 'green';
+            } else if (scoreNum >= 80) {
+                grade = '良好';
+                gradeColor = 'blue';
+            } else if (scoreNum >= 60) {
+                grade = '中等';
+                gradeColor = 'yellow';
+            } else {
+                grade = '待改进';
+                gradeColor = 'red';
+            }
+
             return {
                 repo: `${this.owner}/${this.repo}`,
+                repoUrl: `https://github.com/${this.owner}/${this.repo}`,
                 totalScore,
+                grade,
+                gradeColor,
+                // 仓库基本信息
+                repoInfo: {
+                    name: repoInfo.data.name,
+                    fullName: repoInfo.data.full_name,
+                    description: repoInfo.data.description || '暂无描述',
+                    language: repoInfo.data.language || '未知',
+                    stars: repoInfo.data.stargazers_count,
+                    forks: repoInfo.data.forks_count,
+                    watchers: repoInfo.data.watchers_count,
+                    openIssues: repoInfo.data.open_issues_count,
+                    createdAt: repoInfo.data.created_at,
+                    updatedAt: repoInfo.data.pushed_at,
+                    license: repoInfo.data.license ? repoInfo.data.license.name : '无',
+                    topics: repoInfo.data.topics || []
+                },
+                // 文件检查详情
+                fileChecks: completeness.fileChecks || [],
+                // 文档统计
+                docStats: {
+                    readmeLength: readmeContent.length,
+                    contribLength: contribContent.length,
+                    hasReadme: !!readmeContent,
+                    hasContributing: !!contribContent
+                },
                 dimensions: {
                     completeness,
                     normativeness,
@@ -132,56 +177,84 @@ class QualityAnalyzer {
 
     checkCompleteness(files) {
         const checks = [
-            { key: 'README', regex: /^readme/i },
-            { key: 'LICENSE', regex: /^license/i },
-            { key: 'CONTRIBUTING', regex: /^contributing/i },
-            { key: 'CODE_OF_CONDUCT', regex: /^code_of_conduct/i }
+            { key: 'README', regex: /^readme/i, name: 'README.md', description: '项目说明文档' },
+            { key: 'LICENSE', regex: /^license/i, name: 'LICENSE', description: '开源许可证' },
+            { key: 'CONTRIBUTING', regex: /^contributing/i, name: 'CONTRIBUTING.md', description: '贡献指南' },
+            { key: 'CODE_OF_CONDUCT', regex: /^code_of_conduct/i, name: 'CODE_OF_CONDUCT.md', description: '行为准则' }
         ];
 
         let found = 0;
         let missing = [];
-        checks.forEach(check => {
-            if (files.some(f => check.regex.test(f))) found++;
-            else missing.push(check.key);
+        const fileChecks = checks.map(check => {
+            const exists = files.some(f => check.regex.test(f));
+            if (exists) {
+                found++;
+                return { ...check, exists: true, status: 'found' };
+            } else {
+                missing.push(check.key);
+                return { ...check, exists: false, status: 'missing' };
+            }
         });
 
         return {
             score: (found / checks.length) * 100,
-            details: missing.length === 0 ? "所有关键文件齐全" : `缺失文件: ${missing.join(', ')}`
+            details: missing.length === 0 ? "所有关键文件齐全" : `缺失文件: ${missing.join(', ')}`,
+            fileChecks
         };
     }
 
     checkNormativeness(content) {
-        if (!content) return { score: 0, details: "未检测到内容或下载失败" };
+        if (!content) return { score: 0, details: "未检测到内容或下载失败", checks: [] };
         
         const hasH1 = /^#\s/m.test(content);
         const hasH2 = /^##\s/m.test(content);
         const hasCodeBlocks = /```[\s\S]*?```/.test(content);
+        const hasLinks = /\[.*?\]\(.*?\)/.test(content);
+        const hasBold = /\*\*.*?\*\*/.test(content) || /__.*?__/.test(content);
         
         let score = 60; 
         if (hasH1) score += 10;
         if (hasH2) score += 10;
         if (hasCodeBlocks) score += 20;
 
+        const checks = [
+            { name: '一级标题 (H1)', passed: hasH1 },
+            { name: '二级标题 (H2)', passed: hasH2 },
+            { name: '代码块', passed: hasCodeBlocks },
+            { name: '链接', passed: hasLinks },
+            { name: '粗体文本', passed: hasBold }
+        ];
+
         return {
             score: Math.min(100, score),
-            details: hasCodeBlocks ? "Markdown格式规范" : "缺少代码块或标题层级不清晰"
+            details: hasCodeBlocks ? "Markdown格式规范" : "缺少代码块或标题层级不清晰",
+            checks
         };
     }
 
     checkReadability(content) {
-        if (!content) return { score: 0, details: "未检测到内容或下载失败" };
+        if (!content) return { score: 0, details: "未检测到内容或下载失败", checks: [] };
 
         const hasImages = /!\[.*?\]\(.*?\)/.test(content) || /<img/i.test(content);
         const hasLists = /^(\*|-|\d\.)\s/m.test(content);
+        const hasTables = /\|.*\|/.test(content);
+        const hasBlockquotes = /^>\s/m.test(content);
         
         let score = 50;
         if (hasImages) score += 30;
         if (hasLists) score += 20;
 
+        const checks = [
+            { name: '图片/图表', passed: hasImages },
+            { name: '列表', passed: hasLists },
+            { name: '表格', passed: hasTables },
+            { name: '引用块', passed: hasBlockquotes }
+        ];
+
         return {
             score: Math.min(100, score),
-            details: hasImages ? "图文并茂" : "建议添加图片或架构图"
+            details: hasImages ? "图文并茂" : "建议添加图片或架构图",
+            checks
         };
     }
 
@@ -202,18 +275,28 @@ class QualityAnalyzer {
     }
 
     checkUsability(content) {
-        if (!content) return { score: 0, details: "未检测到内容或下载失败" };
+        if (!content) return { score: 0, details: "未检测到内容或下载失败", checks: [] };
 
-        const installCmd = /npm install|pip install|go get|cargo build|yarn add/i.test(content);
-        const usageEx = /usage|example|demo/i.test(content);
+        const installCmd = /npm install|pip install|go get|cargo build|yarn add|brew install/i.test(content);
+        const usageEx = /usage|example|demo|quick start|getting started/i.test(content);
+        const hasApiDocs = /api|documentation|docs/i.test(content);
+        const hasConfig = /config|configuration|setup|install/i.test(content);
 
         let score = 50;
         if (installCmd) score += 30;
         if (usageEx) score += 20;
 
+        const checks = [
+            { name: '安装命令', passed: installCmd },
+            { name: '使用示例', passed: usageEx },
+            { name: 'API文档', passed: hasApiDocs },
+            { name: '配置说明', passed: hasConfig }
+        ];
+
         return {
             score: Math.min(100, score),
-            details: installCmd ? "包含安装/运行命令" : "缺少明确的安装或启动命令"
+            details: installCmd ? "包含安装/运行命令" : "缺少明确的安装或启动命令",
+            checks
         };
     }
 }
